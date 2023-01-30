@@ -135,7 +135,9 @@ const getAllBooksHandler = (req, h) => {
       };
     });
 
-    return h.response(successWithoutMessage("success", data)).code(200);
+    return h
+      .response(successWithoutMessage("success", { books: data }))
+      .code(200);
   } catch (err) {
     console.log(err);
   }
@@ -145,9 +147,9 @@ const getAllBooksHandler = (req, h) => {
  * * Get Books by id
  * */
 const getNotesByIdHandler = (req, h) => {
-  const { id } = req.params;
+  const { bookId } = req.params;
 
-  const book = books.filter((note) => note.id === id)[0];
+  const book = books.filter((note) => note.id === bookId)[0];
 
   if (!book) {
     return h.response(error("fail", "Buku tidak ditemukan")).code(404);
@@ -160,7 +162,7 @@ const getNotesByIdHandler = (req, h) => {
  * * Edit Books by id
  * */
 const editNotesByIdHandler = (req, h) => {
-  const { id } = req.params;
+  const { bookId } = req.params;
 
   const {
     name,
@@ -173,107 +175,109 @@ const editNotesByIdHandler = (req, h) => {
     reading,
   } = req.payload;
 
-  const index = books.filter((note) => note.id === id);
+  const finished = pageCount === readPage ? true : false;
+  const updatedAt = new Date().toISOString();
 
-  let finished = pageCount === readPage ? true : false;
+  const data = {
+    name,
+    year,
+    author,
+    summary,
+    publisher,
+    pageCount,
+    readPage,
+    reading,
+    finished,
+    updatedAt,
+  };
+
+  if (typeof name !== "string" || name === "" || name === null) {
+    return h
+      .response(error("fail", "Gagal memperbarui buku. Mohon isi nama buku"))
+      .code(400);
+  } else if (
+    typeof year !== "number" ||
+    year === "" ||
+    year === 0 ||
+    year === null
+  ) {
+    return h
+      .response(error("fail", "Gagal memperbarui buku. Mohon isi year buku"))
+      .code(201);
+  } else if (typeof author !== "string" || author === "" || author === null) {
+    return h
+      .response(error("fail", "Gagal memperbarui buku. Mohon isi author buku"))
+      .code(201);
+  } else if (
+    typeof summary !== "string" ||
+    summary === "" ||
+    summary === null
+  ) {
+    return h
+      .response(error("fail", "Gagal memperbarui buku. Mohon isi author buku"))
+      .code(201);
+  } else if (
+    typeof publisher !== "string" ||
+    publisher === "" ||
+    publisher === null
+  ) {
+    return h
+      .response(error("fail", "Gagal memperbarui buku. Mohon isi author buku"))
+      .code(201);
+  }
+
+  if (readPage > pageCount) {
+    return h
+      .response(
+        error(
+          "fail",
+          "Gagal memperbarui buku. readPage tidak boleh lebih besar dari pageCount"
+        )
+      )
+      .code(400);
+  }
+
+  const index = books.findIndex((book) => book.id === bookId);
 
   if (index !== -1) {
     books[index] = {
       ...books[index],
-      name: name ?? "",
-      year,
-      author,
-      summary,
-      publisher,
-      pageCount,
-      readPage,
-      reading,
-      finished,
+      ...data,
     };
-
-    if (typeof name !== "string" || name === "" || name === null) {
-      return h
-        .response(
-          error("fail", "Gagal memperbaharui buku. Mohon isi nama buku")
-        )
-        .code(400);
-    } else if (
-      typeof year !== "number" ||
-      year === "" ||
-      year === 0 ||
-      year === null
-    ) {
-      return h
-        .response(
-          error("fail", "Gagal memperbaharui buku. Mohon isi year buku")
-        )
-        .code(201);
-    } else if (typeof author !== "string" || author === "" || author === null) {
-      return h
-        .response(
-          error("fail", "Gagal memperbaharui buku. Mohon isi author buku")
-        )
-        .code(201);
-    } else if (
-      typeof summary !== "string" ||
-      summary === "" ||
-      summary === null
-    ) {
-      return h
-        .response(
-          error("fail", "Gagal memperbaharui buku. Mohon isi author buku")
-        )
-        .code(201);
-    } else if (
-      typeof publisher !== "string" ||
-      publisher === "" ||
-      publisher === null
-    ) {
-      return h
-        .response(
-          error("fail", "Gagal memperbaharui buku. Mohon isi author buku")
-        )
-        .code(201);
-    }
-
-    if (readPage > pageCount) {
-      return h
-        .response(
-          error(
-            "fail",
-            "Gagal memperbaharui buku. readPage tidak boleh lebih besar dari pageCount"
-          )
-        )
-        .code(400);
-    }
 
     return h
       .response(successWithoutData("success", "Buku berhasil diperbarui"))
       .code(200);
   }
 
-  return h.response(error("fail", "Buku gagal diperbaharui")).code(200);
+  return h
+    .response(error("fail", "Gagal memperbarui buku. Id tidak ditemukan"))
+    .code(404);
 };
 
 /**
  * * DELETE Books by id
  * */
 const deleteNotesByIdHandler = (req, h) => {
-  const { id } = req.params;
+  const { bookId } = req.params;
 
-  const index = notes.findIndex((note) => note.id === id);
+  const index = books.findIndex((note) => note.id === bookId);
 
-  if (index) {
-    books.slice(index, 1);
+  try {
+    if (index !== -1) {
+      books.splice(index, 1);
+      return h
+        .response(successWithoutData("success", "Buku berhasil dihapus"))
+        .code(200);
+    }
 
     return h
-      .response(successWithoutData("success", "Buku berhasil dihapus"))
-      .code(200);
+      .response(error("fail", "Buku gagal dihapus. Id tidak ditemukan"))
+      .code(404);
+  } catch (error) {
+    console.error(error);
+    return h.response(error("fail", "Server Error")).code(500);
   }
-
-  return h
-    .response(error("fail", "Buku gagal dihapus. Id tidak ditemukan"))
-    .code(200);
 };
 
 module.exports = {
